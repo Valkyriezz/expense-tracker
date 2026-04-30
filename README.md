@@ -5,8 +5,8 @@ category, sort by date, and see a running total. Built to behave correctly
 under realistic conditions — flaky networks, retries, double-clicks, and page
 refreshes.
 
-- **Live app:** _add Render URL after deploy_
-- **Repo:** _add GitHub URL after push_
+- **Live app:** https://expense-tracker-woad-rho.vercel.app
+- **Repo:** https://github.com/Valkyriezz/expense-tracker
 
 ---
 
