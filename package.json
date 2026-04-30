@@ -2,7 +2,8 @@
   "name": "expense-tracker",
   "private": true,
   "version": "1.0.0",
-  "description": "Minimal full-stack expense tracker (Express + node:sqlite + React)",
+  "description": "Minimal full-stack expense tracker (Express + libSQL + React)",
+  "type": "module",
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix web install",
     "build": "npm --prefix web run build && npm --prefix server run build",
