@@ -2,9 +2,9 @@ import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
 import {
   db,
-  prepareNamed,
-  transaction,
-  SQLITE_CONSTRAINT_PRIMARYKEY,
+  ready,
+  withTransaction,
+  isPrimaryKeyConflict,
 } from "../lib/db.js";
 import { parseAmountToPaise } from "../lib/money.js";
 import { CreateExpenseInput, ListExpensesQuery } from "../lib/schema.js";
@@ -18,22 +18,16 @@ type ExpenseRow = {
   created_at: string;
 };
 
-const insertExpense = prepareNamed(`
-  INSERT INTO expenses (amount_paise, category, description, date)
-  VALUES ($amount_paise, $category, $description, $date)
-  RETURNING id, amount_paise, category, description, date, created_at
-`);
-
-const selectExpense = db.prepare(`SELECT * FROM expenses WHERE id = ?`);
-
-const insertIdemKey = db.prepare(`
-  INSERT INTO idempotency_keys (key, request_hash, expense_id)
-  VALUES (?, ?, ?)
-`);
-
-const selectIdemKey = db.prepare(`
-  SELECT request_hash, expense_id FROM idempotency_keys WHERE key = ?
-`);
+function rowToExpense(row: Record<string, unknown>): ExpenseRow {
+  return {
+    id: Number(row.id),
+    amount_paise: Number(row.amount_paise),
+    category: String(row.category),
+    description: String(row.description ?? ""),
+    date: String(row.date),
+    created_at: String(row.created_at),
+  };
+}
 
 function shapeExpense(row: ExpenseRow) {
   return {
@@ -55,7 +49,9 @@ class IdemRace extends Error {}
 
 export const expensesRouter = Router();
 
-expensesRouter.post("/expenses", (req: Request, res: Response) => {
+expensesRouter.post("/expenses", async (req: Request, res: Response) => {
+  await ready();
+
   const parsed = CreateExpenseInput.safeParse(req.body);
   if (!parsed.success) {
     return res
@@ -83,43 +79,48 @@ expensesRouter.post("/expenses", (req: Request, res: Response) => {
 
   // Idempotency replay: same key + same body → return the original result.
   if (idemKey) {
-    const existing = selectIdemKey.get(idemKey) as
-      | { request_hash: string; expense_id: number }
-      | undefined;
+    const existingRs = await db.execute({
+      sql: `SELECT request_hash, expense_id FROM idempotency_keys WHERE key = ?`,
+      args: [idemKey],
+    });
+    const existing = existingRs.rows[0];
     if (existing) {
-      if (existing.request_hash !== requestHash) {
+      if (String(existing.request_hash) !== requestHash) {
         return res.status(409).json({
           error: "idempotency_key_reuse",
           message:
             "Idempotency-Key was previously used with a different request body",
         });
       }
-      const row = selectExpense.get(existing.expense_id) as
-        | ExpenseRow
-        | undefined;
-      if (row) return res.status(200).json(shapeExpense(row));
+      const rowRs = await db.execute({
+        sql: `SELECT * FROM expenses WHERE id = ?`,
+        args: [Number(existing.expense_id)],
+      });
+      const row = rowRs.rows[0];
+      if (row) return res.status(200).json(shapeExpense(rowToExpense(row)));
       // Fall through if the original expense was deleted.
     }
   }
 
   let row: ExpenseRow;
   try {
-    row = transaction((): ExpenseRow => {
-      const created = insertExpense.get({
-        amount_paise: amountPaise,
-        category: input.category,
-        description: input.description,
-        date: input.date,
-      }) as ExpenseRow;
+    row = await withTransaction(async (tx) => {
+      const insertRs = await tx.execute({
+        sql: `INSERT INTO expenses (amount_paise, category, description, date)
+              VALUES (?, ?, ?, ?)
+              RETURNING id, amount_paise, category, description, date, created_at`,
+        args: [amountPaise, input.category, input.description, input.date],
+      });
+      const created = rowToExpense(insertRs.rows[0]!);
       if (idemKey) {
         try {
-          insertIdemKey.run(idemKey, requestHash, created.id);
+          await tx.execute({
+            sql: `INSERT INTO idempotency_keys (key, request_hash, expense_id)
+                  VALUES (?, ?, ?)`,
+            args: [idemKey, requestHash, created.id],
+          });
         } catch (err) {
-          if (
-            (err as { errcode?: number }).errcode === SQLITE_CONSTRAINT_PRIMARYKEY
-          ) {
-            throw new IdemRace();
-          }
+          if (isPrimaryKeyConflict(err)) throw new IdemRace();
           throw err;
         }
       }
@@ -128,12 +129,17 @@ expensesRouter.post("/expenses", (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof IdemRace) {
       // Concurrent request inserted the same key first — replay its result.
-      const winner = selectIdemKey.get(idemKey!) as
-        | { request_hash: string; expense_id: number }
-        | undefined;
-      if (winner && winner.request_hash === requestHash) {
-        const row2 = selectExpense.get(winner.expense_id) as ExpenseRow;
-        return res.status(200).json(shapeExpense(row2));
+      const winnerRs = await db.execute({
+        sql: `SELECT request_hash, expense_id FROM idempotency_keys WHERE key = ?`,
+        args: [idemKey!],
+      });
+      const winner = winnerRs.rows[0];
+      if (winner && String(winner.request_hash) === requestHash) {
+        const r = await db.execute({
+          sql: `SELECT * FROM expenses WHERE id = ?`,
+          args: [Number(winner.expense_id)],
+        });
+        return res.status(200).json(shapeExpense(rowToExpense(r.rows[0]!)));
       }
       return res.status(409).json({
         error: "idempotency_key_reuse",
@@ -146,7 +152,9 @@ expensesRouter.post("/expenses", (req: Request, res: Response) => {
   return res.status(201).json(shapeExpense(row));
 });
 
-expensesRouter.get("/expenses", (req: Request, res: Response) => {
+expensesRouter.get("/expenses", async (req: Request, res: Response) => {
+  await ready();
+
   const parsed = ListExpensesQuery.safeParse(req.query);
   if (!parsed.success) {
     return res
@@ -155,31 +163,24 @@ expensesRouter.get("/expenses", (req: Request, res: Response) => {
   }
   const { category, sort } = parsed.data;
 
-  // Newest first by default; tie-break by created_at so two expenses on the
-  // same calendar date are deterministically ordered.
   const orderBy =
     sort === "date_asc" ? "date ASC, created_at ASC" : "date DESC, created_at DESC";
 
-  let rows: ExpenseRow[];
-  if (category) {
-    rows = db
-      .prepare(
-        `SELECT id, amount_paise, category, description, date, created_at
-         FROM expenses
-         WHERE category = ?
-         ORDER BY ${orderBy}`,
-      )
-      .all(category) as ExpenseRow[];
-  } else {
-    rows = db
-      .prepare(
+  const rs = category
+    ? await db.execute({
+        sql: `SELECT id, amount_paise, category, description, date, created_at
+              FROM expenses
+              WHERE category = ?
+              ORDER BY ${orderBy}`,
+        args: [category],
+      })
+    : await db.execute(
         `SELECT id, amount_paise, category, description, date, created_at
          FROM expenses
          ORDER BY ${orderBy}`,
-      )
-      .all() as ExpenseRow[];
-  }
+      );
 
+  const rows = rs.rows.map(rowToExpense);
   const total_paise = rows.reduce((sum, r) => sum + r.amount_paise, 0);
   return res.json({
     items: rows.map(shapeExpense),

@@ -14,25 +14,25 @@ refreshes.
 
 | Layer    | Choice                                                | Why                                                                 |
 | -------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
-| Backend  | Node 22 + Express + TypeScript                        | Familiar, minimal, fast                                             |
-| Storage  | SQLite via Node's built-in `node:sqlite`              | ACID transactions, single-file, zero native build, works on Render free tier |
+| Backend  | Node + Express + TypeScript                           | Familiar, minimal, fast                                             |
+| Storage  | SQLite via `@libsql/client` (libSQL)                  | Same SQL as SQLite, but the client also speaks Turso (`libsql://…`), so dev uses a local file and prod uses a hosted serverless SQLite — no driver swap |
 | Validation | Zod                                                | Single source of truth for input shape, good error messages          |
 | Frontend | React 18 + TypeScript + Vite                          | Small, fast, idiomatic                                              |
-| Tests    | Node's built-in test runner + Supertest               | No extra runner; works first-try with `node:sqlite`                  |
-| Deploy   | One Render Web Service (server serves built web app)  | Single URL, single deploy                                           |
+| Tests    | Node's built-in test runner + Supertest               | No extra runner; runs against a real SQLite file in a temp dir      |
+| Deploy   | Vercel serverless function + Vercel CDN for the SPA   | Free tier, no card; same domain so no CORS                           |
 
 ---
 
 ## Running locally
 
-Requirements: **Node ≥ 22.5** (uses `node:sqlite`).
+Requirements: **Node ≥ 18**.
 
 ```bash
 # install
 npm run install:all
 
 # in two terminals (recommended for development):
-npm run dev:server   # API on :3001
+npm run dev:server   # API on :3001 (writes to ./server/data/expenses.db)
 npm run dev:web      # Vite dev server on :5173, proxies /api → :3001
 
 # OR, single-process (build once, serve everything from :3001)
@@ -46,6 +46,10 @@ Tests:
 ```bash
 npm test
 ```
+
+By default the server uses a local SQLite file (`./server/data/expenses.db`).
+Set `TURSO_URL` and `TURSO_AUTH_TOKEN` to point it at a hosted Turso database
+instead — the same code path covers both.
 
 ---
 
@@ -212,11 +216,9 @@ and proxies `/api` to the server.
 - **No category management UI.** Categories are free-text with a datalist of
   common values. A real product would have a managed category list with
   per-user customization.
-- **`node:sqlite` is marked experimental** in Node 22 (still emits a warning).
-  Stable enough in practice — the API is identical to `better-sqlite3`. Chose it
-  because the dev environment didn't have a C++ toolchain and the deploy target
-  doesn't either; this avoids native-build flakiness without giving up real
-  SQLite.
+- **`@libsql/client` (libSQL) instead of `better-sqlite3`** because the same
+  client speaks both a local SQLite file and a hosted Turso database — local
+  dev, tests, and prod all run the same code path with just an env-var swap.
 - **No automatic database migrations.** Schema is created with `CREATE TABLE IF
   NOT EXISTS` on boot. For v2 I'd add a `_migrations` table and a numbered set
   of SQL files.
@@ -240,24 +242,37 @@ and proxies `/api` to the server.
 
 ---
 
-## Deploying to Render
+## Deploying
 
-This repo deploys as a single **Render Web Service**.
+The repo ships ready for **Vercel + Turso** (both have free tiers that don't
+require a credit card on file). The Express app runs as a single Vercel
+serverless function (`api/[[...slug]].ts` → catch-all under `/api/*`); the
+React app is served by Vercel's CDN from `web/dist`.
 
-1. Push to GitHub.
-2. New → Web Service → connect the repo.
-3. Settings:
-   - **Runtime:** Node
-   - **Build command:** `npm run install:all && npm run build`
-   - **Start command:** `npm start`
-   - **Environment variables:**
-     - `NODE_VERSION=22.11.0` (or any 22.5+)
-     - `DB_PATH=/var/data/expenses.db` _(see disk note below)_
-4. Add a **Render Disk** (1 GB is plenty) mounted at `/var/data` so the SQLite
-   file persists across deploys/restarts. _Without a disk, the data is wiped on
-   each restart — fine for a quick demo, not for real use._
+### 1. Create a Turso database (~3 min)
 
-The same setup works on Railway / Fly.io with equivalent disk attachments.
+1. Sign in at [turso.tech](https://turso.tech) (GitHub login, no card).
+2. **Create database** — pick a region near you.
+3. On the database page, copy the **Database URL** (starts with `libsql://…`).
+4. **Generate Token** → copy it.
+
+### 2. Deploy on Vercel (~3 min)
+
+1. Sign in at [vercel.com](https://vercel.com) (GitHub login, no card).
+2. **New Project** → import this repo.
+3. Vercel will read `vercel.json` and pick the right install/build commands.
+4. Add **Environment Variables** before the first deploy:
+   - `TURSO_URL` = `libsql://…` (from step 1.3)
+   - `TURSO_AUTH_TOKEN` = the token from step 1.4
+5. **Deploy**. First build takes ~2 min.
+
+### Why not Render?
+
+Render now requires a credit card on file even for the free tier. Vercel +
+Turso gives the same shape (managed compute + managed SQLite-flavoured DB) with
+a free, no-card path that's friendlier for short-lived demos. The code is
+deploy-target-agnostic — set `DB_PATH` (file mode) or `TURSO_URL` (network
+mode) and the same server runs anywhere.
 
 ---
 
@@ -265,12 +280,14 @@ The same setup works on Railway / Fly.io with equivalent disk attachments.
 
 ```
 expense-tracker/
-├── server/                   # Express + node:sqlite API
+├── api/
+│   └── [[...slug]].ts        # Vercel serverless entry — wraps the Express app
+├── server/                   # Express + libSQL API
 │   ├── src/
-│   │   ├── app.ts            # Express app factory (also serves web/dist)
-│   │   ├── index.ts          # Entry: listens on PORT
+│   │   ├── app.ts            # Express app factory (also serves web/dist locally)
+│   │   ├── index.ts          # Entry: listens on PORT (used by `npm start`)
 │   │   ├── lib/
-│   │   │   ├── db.ts         # node:sqlite, schema, transaction helper
+│   │   │   ├── db.ts         # libSQL client, schema, transaction helper
 │   │   │   ├── money.ts      # rupee-string ↔ paise integer
 │   │   │   └── schema.ts     # zod input/query schemas
 │   │   └── routes/
@@ -288,6 +305,7 @@ expense-tracker/
 │       │   └── ExpenseList.tsx
 │       └── lib/
 │           └── api.ts        # fetch wrappers, money formatting
+├── vercel.json               # Vercel build/output config
 ├── package.json              # orchestrates build/start/test
 └── README.md
 ```
