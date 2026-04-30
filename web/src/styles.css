@@ -1,17 +1,44 @@
+/* =====================================================================
+   Minecraft-inspired theme
+   ---------------------------------------------------------------------
+   - Palette echoes grass / dirt / stone / bedrock blocks
+   - Cards use raised bevels (inset highlights + outset shadow), inputs
+     use sunken bevels — same trick old GUI toolkits used, perfect for
+     a blocky look without any images.
+   - "Press Start 2P" only on titles (it's expensive to read); body is
+     "VT323" which is a pixel font but still legible at small sizes.
+   - No border-radius anywhere — everything stays square.
+   ===================================================================== */
+
 :root {
-  --bg: #f7f7f8;
-  --surface: #ffffff;
-  --border: #e3e3e8;
-  --text: #1a1a1f;
-  --muted: #6b6b75;
-  --accent: #2b6cb0;
-  --accent-hover: #2c5282;
-  --danger-bg: #fff4f4;
-  --danger-border: #f0b4b4;
-  --danger-text: #8b1a1a;
-  --pill-bg: #eef2ff;
-  --pill-text: #3949ab;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  /* Block palette */
+  --grass: #5dae4a;
+  --grass-bright: #79c264;
+  --grass-dark: #3f7e34;
+  --dirt: #8b5a2b;
+  --dirt-dark: #5e3d1c;
+  --stone: #7e7e7e;
+  --stone-dark: #5a5a5a;
+  --cobble: #4a4a4a;
+  --bedrock: #1e1e1e;
+  --bedrock-deep: #141414;
+  --diamond: #5dddd3;
+  --redstone: #d34c3a;
+  --gold: #f0c447;
+
+  /* Text */
+  --text: #e8e6df;
+  --text-soft: #b9b6a8;
+  --text-muted: #8a8674;
+
+  /* Borders & bevels */
+  --bevel-light: rgba(255, 255, 255, 0.18);
+  --bevel-dark: rgba(0, 0, 0, 0.55);
+
+  /* Effects */
+  --shadow-block: 4px 4px 0 rgba(0, 0, 0, 0.4);
+  --shadow-block-sm: 2px 2px 0 rgba(0, 0, 0, 0.4);
+  --transition: 150ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 * {
@@ -26,192 +53,327 @@ body,
 
 body {
   margin: 0;
-  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  font-family: "VT323", ui-monospace, "Courier New", monospace;
+  font-size: 20px;
+  line-height: 1.4;
   color: var(--text);
-  background: var(--bg);
+  background-color: var(--bedrock);
+  /* Subtle bedrock-pixel texture: two offset checkerboards layered */
+  background-image:
+    linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.015) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.015) 75%
+    ),
+    linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.015) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.015) 75%
+    );
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+  /* Force pixelated rendering of any backgrounds we set */
+  image-rendering: pixelated;
+  -webkit-font-smoothing: antialiased;
 }
 
 .container {
-  max-width: 880px;
+  max-width: 920px;
   margin: 0 auto;
-  padding: 32px 20px 48px;
+  padding: 32px 20px 56px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
+/* ---------- Header ---------- */
 header h1 {
-  margin: 0 0 4px;
-  font-size: 24px;
-  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--grass-bright);
+  letter-spacing: 1px;
+  text-shadow:
+    3px 3px 0 var(--bedrock-deep),
+    3px 3px 0 var(--grass-dark);
+  text-transform: uppercase;
 }
 
 header p {
   margin: 0;
+  color: var(--text-soft);
+  font-size: 18px;
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .small {
-  font-size: 12px;
+  font-size: 14px;
+  letter-spacing: 0.5px;
 }
 
+/* ---------- Block (card) ---------- */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: var(--shadow);
+  position: relative;
+  background-color: var(--cobble);
+  /* Subtle stone-pattern speckle */
+  background-image:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.03) 75%
+    );
+  background-size: 8px 8px;
+  padding: 24px;
+  border: none;
+  /* Raised-block bevel: light top/left, dark bottom/right, drop-shadow */
+  box-shadow:
+    inset 4px 4px 0 var(--bevel-light),
+    inset -4px -4px 0 var(--bevel-dark),
+    var(--shadow-block);
 }
 
 .card h2 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 600;
+  margin: 0 0 16px;
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 var(--bedrock-deep);
 }
 
+/* ---------- Form ---------- */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
+  gap: 6px;
 }
 
 .field > span {
-  color: var(--muted);
-  font-weight: 500;
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-soft);
+  text-transform: uppercase;
 }
 
+/* Inputs: sunken bevel, pixel border */
 input[type="text"],
 input[type="date"],
 select {
   appearance: none;
   width: 100%;
-  padding: 8px 10px;
-  font: inherit;
-  color: inherit;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 18px;
+  color: var(--text);
+  background-color: var(--bedrock);
+  border: none;
   outline: none;
+  /* Inset-block bevel: dark top/left, light bottom/right */
+  box-shadow:
+    inset 3px 3px 0 var(--bevel-dark),
+    inset -3px -3px 0 rgba(255, 255, 255, 0.06);
+  transition: box-shadow var(--transition);
+}
+
+input::placeholder {
+  color: var(--text-muted);
 }
 
 input:focus,
 select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.15);
+  /* Grass-green glow on focus */
+  box-shadow:
+    inset 3px 3px 0 var(--bevel-dark),
+    inset -3px -3px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 3px rgba(93, 174, 74, 0.55);
 }
 
 input:disabled,
 select:disabled,
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
+select {
+  /* Repaint the native arrow with a chunky pixel triangle */
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-soft) 50%),
+    linear-gradient(-45deg, transparent 50%, var(--text-soft) 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 10px) 50%;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+
+/* ---------- Buttons (raised block) ---------- */
 button {
   appearance: none;
-  font: inherit;
-  font-weight: 500;
-  background: var(--accent);
-  color: white;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  padding: 8px 14px;
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 12px 18px;
+  color: #ffffff;
+  background-color: var(--grass);
+  border: none;
   cursor: pointer;
   align-self: flex-start;
+  text-shadow: 2px 2px 0 var(--bedrock-deep);
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.25),
+    inset -3px -3px 0 rgba(0, 0, 0, 0.4),
+    var(--shadow-block-sm);
+  transition: transform var(--transition), box-shadow var(--transition),
+    background-color var(--transition);
 }
 
 button:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background-color: var(--grass-bright);
+}
+
+/* "Pressed" state: invert bevel + nudge the button down/right so it visually
+   sinks into the page, matching Minecraft button click feedback. */
+button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow:
+    inset 3px 3px 0 rgba(0, 0, 0, 0.4),
+    inset -3px -3px 0 rgba(255, 255, 255, 0.1);
 }
 
 button.ghost {
-  background: transparent;
+  background-color: var(--stone);
   color: var(--text);
-  border-color: var(--border);
 }
 
 button.ghost:hover:not(:disabled) {
-  background: var(--bg);
-  border-color: var(--muted);
+  background-color: #8c8c8c;
 }
 
 button.link {
+  font-family: "VT323", monospace;
+  font-size: 18px;
+  text-transform: none;
+  letter-spacing: 0;
   background: transparent;
-  border: none;
-  color: var(--accent);
-  padding: 0;
+  color: var(--diamond);
+  text-shadow: none;
+  box-shadow: none;
+  padding: 0 4px;
   text-decoration: underline;
-  cursor: pointer;
 }
 
+button.link:hover:not(:disabled) {
+  background: transparent;
+  color: #84e8e0;
+}
+
+button.link:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+/* ---------- Alert (lava-themed) ---------- */
 .alert {
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  color: var(--danger-text);
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+  font-size: 18px;
+  color: #ffe2dc;
+  background-color: var(--redstone);
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    transparent 25%,
+    transparent 75%,
+    rgba(255, 255, 255, 0.06) 75%
+  );
+  background-size: 8px 8px;
+  padding: 10px 14px;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.18),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.45),
+    var(--shadow-block-sm);
 }
 
+/* ---------- Controls row ---------- */
 .controls {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
-  gap: 12px;
+  gap: 16px;
   align-items: end;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .controls button {
   align-self: stretch;
 }
 
+/* ---------- Inventory table ---------- */
 .list {
   overflow-x: auto;
 }
 
 table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-size: 18px;
 }
 
 thead th {
   text-align: left;
-  font-weight: 600;
-  font-size: 12px;
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-soft);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  background-color: var(--bedrock);
+  border: none;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.06),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5);
+}
+
+thead th:first-child {
+  /* sharper edge on first/last cells so the header row reads as one block */
 }
 
 tbody td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  background-color: var(--stone-dark);
+  /* Each cell gets its own inventory-slot bevel */
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.08),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.4);
   vertical-align: middle;
+  transition: background-color var(--transition);
 }
 
-tbody tr:last-child td {
-  border-bottom: none;
+tbody tr:hover td {
+  background-color: #6a6a6a;
 }
 
 td.num,
@@ -219,6 +381,8 @@ th.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  color: var(--gold);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 td.desc {
@@ -226,56 +390,136 @@ td.desc {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-soft);
 }
 
+/* Category pills look like name-tags / item labels */
 .pill {
   display: inline-block;
-  background: var(--pill-bg);
-  color: var(--pill-text);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  background-color: var(--dirt);
+  color: #fff5e2;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.18),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.45);
 }
 
-.empty {
-  padding: 24px;
-  text-align: center;
-  color: var(--muted);
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-}
-
+/* ---------- Empty / loading ---------- */
+.empty,
 .status {
-  padding: 16px;
+  padding: 32px;
   text-align: center;
-  color: var(--muted);
+  color: var(--text-muted);
+  background-color: var(--bedrock);
+  box-shadow:
+    inset 2px 2px 0 rgba(0, 0, 0, 0.45),
+    inset -2px -2px 0 rgba(255, 255, 255, 0.06);
+  font-size: 18px;
 }
 
+/* ---------- Totals ---------- */
 .totals {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 4px solid var(--bedrock-deep);
+  font-size: 18px;
 }
 
 .total {
-  font-size: 16px;
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 var(--bedrock-deep);
 }
 
+.total strong {
+  color: var(--grass-bright);
+  font-weight: normal;
+}
+
+/* ---------- Footer ---------- */
 footer {
   text-align: center;
   margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 16px;
+  letter-spacing: 0.5px;
 }
 
-@media (max-width: 560px) {
+/* ---------- Hover lift on cards (subtle) ---------- */
+.card {
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 640px) {
+  body {
+    font-size: 18px;
+  }
+
+  header h1 {
+    font-size: 16px;
+  }
+
   .row,
   .controls {
     grid-template-columns: 1fr;
   }
+
+  .totals {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
   td.desc {
-    max-width: 160px;
+    max-width: 140px;
+  }
+
+  thead {
+    display: none;
+  }
+
+  /* On mobile, switch the table to a stacked card-per-row layout so the
+     inventory feel works on narrow screens too. */
+  table,
+  tbody,
+  tbody tr,
+  tbody td {
+    display: block;
+    width: 100%;
+  }
+
+  tbody tr {
+    margin-bottom: 8px;
+  }
+
+  tbody td {
+    text-align: left;
+    padding: 8px 12px;
+  }
+
+  td.num {
+    text-align: left;
+  }
+
+  td::before {
+    content: attr(data-label);
+    display: inline-block;
+    width: 90px;
+    font-family: "Press Start 2P", monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
   }
 }

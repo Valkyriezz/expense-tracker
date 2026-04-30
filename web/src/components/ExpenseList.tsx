@@ -14,7 +14,7 @@ export function ExpenseList({ items }: Props) {
   if (items.length === 0) {
     return (
       <div className="empty">
-        No expenses to show. Add one above to get started.
+        Inventory empty — craft your first expense above.
       </div>
     );
   }
@@ -33,12 +33,18 @@ export function ExpenseList({ items }: Props) {
         <tbody>
           {items.map((e) => (
             <tr key={e.id}>
-              <td>{dateFmt.format(new Date(`${e.date}T00:00:00`))}</td>
-              <td>
+              <td data-label="Date">
+                {dateFmt.format(new Date(`${e.date}T00:00:00`))}
+              </td>
+              <td data-label="Category">
                 <span className="pill">{e.category}</span>
               </td>
-              <td className="desc">{e.description || <span className="muted">—</span>}</td>
-              <td className="num">{paiseToRupees(e.amount_paise)}</td>
+              <td className="desc" data-label="Description">
+                {e.description || <span className="muted">—</span>}
+              </td>
+              <td className="num" data-label="Amount">
+                {paiseToRupees(e.amount_paise)}
+              </td>
             </tr>
           ))}
         </tbody>

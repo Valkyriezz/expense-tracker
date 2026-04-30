@@ -85,7 +85,9 @@ export function App() {
     <div className="container">
       <header>
         <h1>Expense Tracker</h1>
-        <p className="muted">Record and review your personal expenses.</p>
+        <p className="muted">
+          Track your loot. Mine your spending.
+        </p>
       </header>
 
       <ExpenseForm onCreated={onCreated} />
@@ -154,8 +156,8 @@ export function App() {
       </section>
 
       <footer className="muted small">
-        Data is persisted on the server. Safe to retry on flaky networks — duplicate
-        submissions are deduped by an Idempotency-Key.
+        Saved to the server. Flaky network? Click again — duplicates are
+        deduped by an Idempotency-Key, no double-mining.
       </footer>
     </div>
   );
